@@ -59,6 +59,7 @@ jobs:
             echo "Master branch has new changes."
             echo "CHANGED=true" >> $GITHUB_OUTPUT
             echo "${{ steps.get_last_commit.outputs.LAST_COMMIT_HASH }}" > $LAST_COMMIT_HASH_FILE
+          fi
 
       - name: Save last commit hash
         if: steps.check_changes.outputs.CHANGED == 'true'
