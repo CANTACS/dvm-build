@@ -70,13 +70,9 @@ jobs:
 
       - name: Save last commit hash
         if: steps.check_changes.outputs.CHANGED == 'true'
-        run: |
-          echo "Saving the last commit hash for future comparison."
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add $LAST_COMMIT_HASH_FILE
-          git commit -m "Update last commit hash"
-          git push origin main
+        uses: stefanzweifel/git-auto-commit-action@v5.0.1
+        with:
+          commit_message: "Update last commit hash"
 
   build:
     name: Build
