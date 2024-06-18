@@ -40,6 +40,13 @@ jobs:
           ref: master
           path: dvmhost
 
+      - name: Checkout build repository
+        uses: actions/checkout@v4.1.1
+        with:
+          repository: CANTACS/dvm-build
+          ref: main
+          path: dvm-build
+
       - name: Get last commit hash of the master branch
         id: get_last_commit
         run: |
@@ -49,7 +56,7 @@ jobs:
       - name: Check if commit has changed since last run
         id: check_changes
         run: |
-          LAST_COMMIT_HASH_FILE="/.github/.last_commit_hash"
+          LAST_COMMIT_HASH_FILE="dvm-build/.github/.last_commit_hash"
           PREVIOUS_COMMIT_HASH=$(cat $LAST_COMMIT_HASH_FILE 2>/dev/null || echo "no_previous_commit")
 
           if [ "${{ steps.get_last_commit.outputs.LAST_COMMIT_HASH }}" == "$PREVIOUS_COMMIT_HASH" ]; then
