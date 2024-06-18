@@ -1,0 +1,191 @@
+# Author: Max
+# Credits: K4YT3X <i@k4yt3x.com>
+
+name: dvmhost-build-action
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    - cron: '30 4 * * *'
+
+permissions:
+  contents: write
+
+jobs:
+
+  setup:
+    name: Setup
+    runs-on: ubuntu-22.04
+
+    outputs:
+      APPNAME: ${{ steps.get_appname.outputs.APPNAME }}
+      DATE: ${{ steps.get_date.outputs.DATE }}
+      CHANGED: ${{ steps.check_changes.outputs.CHANGED }}
+
+    steps:
+
+      - name: Get app name
+        id: get_appname
+        run: echo "APPNAME=${{ github.event.repository.name }}" >> $GITHUB_OUTPUT
+
+      - name: Get date
+        id: get_date
+        run: echo "DATE=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+
+      - name: Checkout DVMProject/dvmhost master branch
+        uses: actions/checkout@v4.1.1
+        with:
+          repository: DVMProject/dvmhost
+          ref: master
+          path: dvmhost
+
+      - name: Get last commit hash of the master branch
+        id: get_last_commit
+        run: |
+          cd dvmhost
+          echo "LAST_COMMIT_HASH=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Check if commit has changed since last run
+        id: check_changes
+        run: |
+          LAST_COMMIT_HASH_FILE=".github/.last_commit_hash"
+          PREVIOUS_COMMIT_HASH=$(cat $LAST_COMMIT_HASH_FILE 2>/dev/null || echo "no_previous_commit")
+
+          if [ "${{ steps.get_last_commit.outputs.LAST_COMMIT_HASH }}" == "$PREVIOUS_COMMIT_HASH" ]; then
+            echo "No changes in master branch since last run."
+            echo "CHANGED=false" >> $GITHUB_OUTPUT
+          else
+            echo "Master branch has new changes."
+            echo "CHANGED=true" >> $GITHUB_OUTPUT
+            echo "${{ steps.get_last_commit.outputs.LAST_COMMIT_HASH }}" > $LAST_COMMIT_HASH_FILE
+
+      - name: Save last commit hash
+        if: steps.check_changes.outputs.CHANGED == 'true'
+        run: |
+          echo "Saving the last commit hash for future comparison."
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add $LAST_COMMIT_HASH_FILE
+          git commit -m "Update last commit hash"
+          git push origin master
+
+  build:
+    name: Build
+    needs: [setup]
+    if: needs.setup.outputs.CHANGED == 'true' # Only run if there are changes
+    strategy:
+      matrix:
+        arch: ["amd64", "arm", "arm64", "armhf"]
+    runs-on: ubuntu-22.04
+
+    env:
+      PACKAGENAME: ${{ needs.setup.outputs.APPNAME }}-${{ needs.setup.outputs.DATE }}-${{ matrix.arch }}
+      DEBIAN_FRONTEND: noninteractive
+
+    steps:
+
+      - name: Checkout DVMProject/dvmhost
+        uses: actions/checkout@v4.1.1
+        with:
+          repository: DVMProject/dvmhost
+          ref: master
+          submodules: recursive
+
+      - name: Setup dependencies
+        run: |
+          sudo dpkg --add-architecture armhf
+          sudo dpkg --add-architecture arm64
+          echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse" | sudo tee /etc/apt/sources.list
+          echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu jammy-security main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=armhf,arm64] http://ports.ubuntu.com/ubuntu-ports jammy main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=armhf,arm64] http://ports.ubuntu.com/ubuntu-ports jammy-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=armhf,arm64] http://ports.ubuntu.com/ubuntu-ports jammy-security main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list
+          sudo apt-get update
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get install -y gcc g++ cmake make libasio-dev libncurses-dev libssl-dev
+          if [ "${{ matrix.arch }}" == "arm64" ]; then
+            sudo apt-get install -y g++-aarch64-linux-gnu gcc-aarch64-linux-gnu libasio-dev:arm64 libncurses-dev:arm64 libssl-dev:arm64
+          elif [ "${{ matrix.arch }}" == "arm" ] || [ "${{ matrix.arch }}" == "armhf" ]; then
+            sudo apt-get install -y g++-arm-linux-gnueabihf gcc-arm-linux-gnueabihf libasio-dev:armhf libncurses-dev:armhf libssl-dev:armhf
+          fi
+
+      - name: Build package
+        run: |
+          mkdir -p ${{ github.workspace }}/build
+          cd ${{ github.workspace }}/build
+          if [[ "${{ matrix.arch }}" == "arm" ]]; then
+            cmake -DCROSS_COMPILE_ARM=1 ..
+          elif [[ "${{ matrix.arch }}" == "arm64" ]]; then
+            cmake -DCROSS_COMPILE_AARCH64=1 ..
+          elif [[ "${{ matrix.arch }}" == "armhf" ]]; then
+            cmake -DCROSS_COMPILE_RPI_ARM=1 ..
+          else
+            cmake ..
+          fi
+          make -j $(nproc)
+
+      - name: Create package
+        run: |
+          mkdir -p ${{ github.workspace }}/${{ env.PACKAGENAME }}
+          cp ${{ github.workspace }}/build/dvmhost ${{ github.workspace }}/build/dvmfne ${{ github.workspace }}/build/dvmcmd ${{ github.workspace }}/${{ env.PACKAGENAME }}
+          if [[ "${{ matrix.arch }}" == "arm64" || "${{ matrix.arch }}" == "amd64" ]]; then
+            cp ${{ github.workspace }}/build/dvmmon ${{ github.workspace }}/${{ env.PACKAGENAME }}
+          fi
+          cd ${{ github.workspace }}
+          zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4.3.1
+        with:
+          name: ${{ env.PACKAGENAME }}-${{ matrix.arch }}
+          path: ${{ env.PACKAGENAME }}.zip
+
+  create-release:
+    name: Create release
+    needs: [setup, build]
+    if: needs.setup.outputs.CHANGED == 'true' # Only run if there are changes
+    runs-on: ubuntu-22.04
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+
+    steps:
+
+      - name: Create release
+        id: create_release
+        uses: softprops/action-gh-release@v2.0.4
+        with:
+          tag_name: ${{ needs.setup.outputs.DATE }}
+          name: Build ${{ needs.setup.outputs.DATE }}
+          draft: false
+          prerelease: false
+
+  upload:
+    name: Upload
+    needs: [setup, build, create-release]
+    if: needs.setup.outputs.CHANGED == 'true' # Only run if there are changes
+    strategy:
+      matrix:
+        arch: ["amd64", "arm", "arm64", "armhf"]
+    runs-on: ubuntu-22.04
+
+    env:
+      PACKAGENAME: ${{ needs.setup.outputs.APPNAME }}-${{ needs.setup.outputs.DATE }}-${{ matrix.arch }}
+      DEBIAN_FRONTEND: noninteractive
+
+    steps:
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4.1.4
+        with:
+          name: ${{ env.PACKAGENAME }}-${{ matrix.arch }}
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2.0.4
+        with:
+          tag_name: ${{ needs.setup.outputs.DATE }}
+          name: Build ${{ needs.setup.outputs.DATE }}
+          files: ${{ env.PACKAGENAME }}.zip
