@@ -49,7 +49,7 @@ jobs:
       - name: Check if commit has changed since last run
         id: check_changes
         run: |
-          LAST_COMMIT_HASH_FILE=".github/.last_commit_hash"
+          LAST_COMMIT_HASH_FILE="/.github/.last_commit_hash"
           PREVIOUS_COMMIT_HASH=$(cat $LAST_COMMIT_HASH_FILE 2>/dev/null || echo "no_previous_commit")
 
           if [ "${{ steps.get_last_commit.outputs.LAST_COMMIT_HASH }}" == "$PREVIOUS_COMMIT_HASH" ]; then
