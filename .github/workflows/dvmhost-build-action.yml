@@ -184,7 +184,7 @@ jobs:
           name: Build ${{ needs.setup.outputs.DATE }}
           draft: false
           prerelease: false
-          body: "Last commit: ${{ needs.setup.outputs.SHORT_COMMIT_HASH }}"
+          body: "Last [dvmhost](https://github.com/DVMProject/dvmhost) commit: ${{ needs.setup.outputs.SHORT_COMMIT_HASH }}"
 
   upload:
     name: Upload
