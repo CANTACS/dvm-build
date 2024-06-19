@@ -127,17 +127,13 @@ jobs:
         with:
           packages: gcc g++ cmake make libasio-dev libncurses-dev libssl-dev
 
-      - name: Install arm64 dependencies
-        if: matrix.arch == 'arm64'
-        uses: awalsh128/cache-apt-pkgs-action@v1.4.2
-        with:
-          packages: g++-aarch64-linux-gnu gcc-aarch64-linux-gnu libasio-dev:arm64 libncurses-dev:arm64 libssl-dev:arm64
-
-      - name: Install arm32 dependencies
-        if: matrix.arch == 'arm' || matrix.arch == 'armhf'
-        uses: awalsh128/cache-apt-pkgs-action@v1.4.2
-        with:
-          packages: g++-arm-linux-gnueabihf gcc-arm-linux-gnueabihf libasio-dev:armhf libncurses-dev:armhf libssl-dev:armhf
+      - name: Install dependencies
+        run: |
+          if [ "${{ matrix.arch }}" == "arm64" ]; then
+            sudo apt-get install -y g++-aarch64-linux-gnu gcc-aarch64-linux-gnu libasio-dev:arm64 libncurses-dev:arm64 libssl-dev:arm64
+          elif [ "${{ matrix.arch }}" == "arm" ] || [ "${{ matrix.arch }}" == "armhf" ]; then
+            sudo apt-get install -y g++-arm-linux-gnueabihf gcc-arm-linux-gnueabihf libasio-dev:armhf libncurses-dev:armhf libssl-dev:armhf
+          fi
 
       - name: Build package
         run: |
