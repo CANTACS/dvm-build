@@ -22,6 +22,7 @@ jobs:
       APPNAME: ${{ steps.get_appname.outputs.APPNAME }}
       DATE: ${{ steps.get_date.outputs.DATE }}
       CHANGED: ${{ steps.check_changes.outputs.CHANGED }}
+      LAST_COMMIT_HASH: ${{ steps.get_last_commit.outputs.LAST_COMMIT_HASH }}
       SHORT_COMMIT_HASH: ${{ steps.get_last_commit.outputs.SHORT_COMMIT_HASH }}
 
     steps:
@@ -74,7 +75,6 @@ jobs:
           else
             echo "Master branch has new changes."
             echo "CHANGED=true" >> $GITHUB_OUTPUT
-            echo "${{ steps.get_last_commit.outputs.LAST_COMMIT_HASH }}" > $LAST_COMMIT_HASH_FILE
           fi
 
   build:
@@ -204,16 +204,31 @@ jobs:
 
   save-commit-hash:
     name: Save Commit Hash
-    needs: [build, create-release, upload]
+    needs: [setup, build, create-release, upload]
+    if: needs.setup.outputs.CHANGED == 'true'
     runs-on: ubuntu-22.04
 
     steps:
+      - name: Install Git
+        uses: awalsh128/cache-apt-pkgs-action@v1.4.2
+        with:
+          packages: git
+
+      - name: Checkout build repository
+        uses: actions/checkout@v4.1.1
+        with:
+          repository: CANTACS/dvm-build
+          ref: package-caching
+          path: dvm-build
+
       - name: Save last commit hash
         run: |
+          LAST_COMMIT_HASH_FILE="dvm-build/.github/.last_commit_hash"
           echo "Saving the last commit hash for future comparison."
           cd dvm-build
+          echo "${{ needs.setup.outputs.LAST_COMMIT_HASH }}" > $LAST_COMMIT_HASH_FILE
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add .github/.last_commit_hash
+          git add $LAST_COMMIT_HASH_FILE
           git commit -m "Update last commit hash" || echo "No changes to commit"
           git push origin package-caching
