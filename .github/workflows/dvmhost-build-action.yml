@@ -33,6 +33,11 @@ jobs:
         id: get_date
         run: echo "DATE=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
 
+      - name: Install Git
+        uses: awalsh128/cache-apt-pkgs-action@v1.4.2
+        with:
+          packages: git
+
       - name: Checkout DVMProject/dvmhost master branch
         uses: actions/checkout@v4.1.1
         with:
