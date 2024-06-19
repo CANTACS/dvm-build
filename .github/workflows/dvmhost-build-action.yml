@@ -22,6 +22,7 @@ jobs:
       APPNAME: ${{ steps.get_appname.outputs.APPNAME }}
       DATE: ${{ steps.get_date.outputs.DATE }}
       CHANGED: ${{ steps.check_changes.outputs.CHANGED }}
+      SHORT_COMMIT_HASH: ${{ steps.get_last_commit.outputs.SHORT_COMMIT_HASH }}
 
     steps:
 
@@ -55,8 +56,10 @@ jobs:
       - name: Get last commit hash of the master branch
         id: get_last_commit
         run: |
-          cd dvmhost
-          echo "LAST_COMMIT_HASH=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+          FULL_HASH=$(git rev-parse HEAD)
+          SHORT_HASH=$(git rev-parse --short HEAD)
+          echo "::set-output name=LAST_COMMIT_HASH::$FULL_HASH"
+          echo "::set-output name=SHORT_COMMIT_HASH::$SHORT_HASH"
 
       - name: Check if commit has changed since last run
         id: check_changes
@@ -176,6 +179,7 @@ jobs:
           name: Build ${{ needs.setup.outputs.DATE }}
           draft: false
           prerelease: false
+          body: "Last commit: ${{ needs.get_last_commit.outputs.SHORT_COMMIT_HASH }}"
 
   upload:
     name: Upload
