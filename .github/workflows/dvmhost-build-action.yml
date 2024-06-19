@@ -77,21 +77,10 @@ jobs:
             echo "${{ steps.get_last_commit.outputs.LAST_COMMIT_HASH }}" > $LAST_COMMIT_HASH_FILE
           fi
 
-      - name: Save last commit hash
-        if: steps.check_changes.outputs.CHANGED == 'true'
-        run: |
-          echo "Saving the last commit hash for future comparison."
-          cd dvm-build
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add .github/.last_commit_hash
-          git commit -m "Update last commit hash" || echo "No changes to commit"
-          git push origin package-caching
-
   build:
     name: Build
     needs: [setup]
-    if: needs.setup.outputs.CHANGED == 'true' # Only run if there are changes
+    if: needs.setup.outputs.CHANGED == 'true'
     strategy:
       matrix:
         arch: ["amd64", "arm", "arm64", "armhf"]
@@ -169,7 +158,7 @@ jobs:
   create-release:
     name: Create release
     needs: [setup, build]
-    if: needs.setup.outputs.CHANGED == 'true' # Only run if there are changes
+    if: needs.setup.outputs.CHANGED == 'true'
     runs-on: ubuntu-22.04
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
@@ -189,7 +178,7 @@ jobs:
   upload:
     name: Upload
     needs: [setup, build, create-release]
-    if: needs.setup.outputs.CHANGED == 'true' # Only run if there are changes
+    if: needs.setup.outputs.CHANGED == 'true'
     strategy:
       matrix:
         arch: ["amd64", "arm", "arm64", "armhf"]
@@ -212,3 +201,19 @@ jobs:
           tag_name: ${{ needs.setup.outputs.DATE }}
           name: Build ${{ needs.setup.outputs.DATE }}
           files: ${{ env.PACKAGENAME }}.zip
+
+  save-commit-hash:
+    name: Save Commit Hash
+    needs: [build, create-release, upload]
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Save last commit hash
+        run: |
+          echo "Saving the last commit hash for future comparison."
+          cd dvm-build
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/.last_commit_hash
+          git commit -m "Update last commit hash" || echo "No changes to commit"
+          git push origin package-caching
