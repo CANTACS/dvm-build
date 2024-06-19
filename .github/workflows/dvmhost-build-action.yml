@@ -75,19 +75,7 @@ jobs:
           else
             echo "Master branch has new changes."
             echo "CHANGED=true" >> $GITHUB_OUTPUT
-            echo "${{ steps.get_last_commit.outputs.LAST_COMMIT_HASH }}" > $LAST_COMMIT_HASH_FILE
           fi
-
-      - name: Save last commit hash
-        if: steps.check_changes.outputs.CHANGED == 'true'
-        run: |
-          echo "Saving the last commit hash for future comparison."
-          cd dvm-build
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add .github/.last_commit_hash
-          git commit -m "Update last commit hash" || echo "No changes to commit"
-          git push origin main
 
   build:
     name: Build
