@@ -59,8 +59,8 @@ jobs:
           cd dvmhost
           FULL_HASH=$(git rev-parse HEAD)
           SHORT_HASH=$(git rev-parse --short HEAD)
-          echo "::set-output name=LAST_COMMIT_HASH::$FULL_HASH"
-          echo "::set-output name=SHORT_COMMIT_HASH::$SHORT_HASH"
+          echo "LAST_COMMIT_HASH=$FULL_HASH" >> $GITHUB_OUTPUT
+          echo "SHORT_COMMIT_HASH=$SHORT_HASH" >> $GITHUB_OUTPUT
 
       - name: Check if commit has changed since last run
         id: check_changes
