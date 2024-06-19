@@ -50,7 +50,7 @@ jobs:
         uses: actions/checkout@v4.1.1
         with:
           repository: CANTACS/dvm-build
-          ref: main
+          ref: package-caching
           path: dvm-build
 
       - name: Get last commit hash of the master branch
