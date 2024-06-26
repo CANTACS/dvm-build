@@ -5,6 +5,12 @@ name: dvmhost-build-action
 
 on:
   workflow_dispatch:
+    inputs:
+      force:
+        description: "Force rebuild regardless of changes"
+        required: false
+        default: false
+        type: boolean
 
   schedule:
     - cron: '30 4 * * *'
@@ -66,15 +72,20 @@ jobs:
       - name: Check if commit has changed since last run
         id: check_changes
         run: |
-          LAST_COMMIT_HASH_FILE="dvm-build/.github/.last_commit_hash"
-          PREVIOUS_COMMIT_HASH=$(cat $LAST_COMMIT_HASH_FILE 2>/dev/null || echo "no_previous_commit")
-
-          if [ "${{ steps.get_last_commit.outputs.LAST_COMMIT_HASH }}" == "$PREVIOUS_COMMIT_HASH" ]; then
-            echo "No changes in master branch since last run."
-            echo "CHANGED=false" >> $GITHUB_OUTPUT
-          else
-            echo "Master branch has new changes."
+          if [[ "${{ github.event.inputs.force }}" == "true" ]]; then
+            echo "Force rebuild requested."
             echo "CHANGED=true" >> $GITHUB_OUTPUT
+          else
+            LAST_COMMIT_HASH_FILE="dvm-build/.github/.last_commit_hash"
+            PREVIOUS_COMMIT_HASH=$(cat $LAST_COMMIT_HASH_FILE 2>/dev/null || echo "no_previous_commit")
+
+            if [ "${{ steps.get_last_commit.outputs.LAST_COMMIT_HASH }}" == "$PREVIOUS_COMMIT_HASH" ]; then
+              echo "No changes in master branch since last run."
+              echo "CHANGED=false" >> $GITHUB_OUTPUT
+            else
+              echo "Master branch has new changes."
+              echo "CHANGED=true" >> $GITHUB_OUTPUT
+            fi
           fi
 
   build:
