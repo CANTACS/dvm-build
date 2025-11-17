@@ -47,14 +47,14 @@ jobs:
           packages: git
 
       - name: Checkout DVMProject/dvmhost master branch
-        uses: actions/checkout@v4.3.1
+        uses: actions/checkout@v5.0.1
         with:
           repository: DVMProject/dvmhost
           ref: master
           path: dvmhost
 
       - name: Checkout build repository
-        uses: actions/checkout@v4.3.1
+        uses: actions/checkout@v5.0.1
         with:
           repository: CANTACS/dvm-build
           ref: main
@@ -104,7 +104,7 @@ jobs:
     steps:
 
       - name: Checkout DVMProject/dvmhost
-        uses: actions/checkout@v4.3.1
+        uses: actions/checkout@v5.0.1
         with:
           repository: DVMProject/dvmhost
           ref: master
@@ -228,7 +228,7 @@ jobs:
           packages: git
 
       - name: Checkout build repository
-        uses: actions/checkout@v4.3.1
+        uses: actions/checkout@v5.0.1
         with:
           repository: CANTACS/dvm-build
           ref: main
